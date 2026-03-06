@@ -3,3 +3,5 @@ flask-cors==4.0.1
 mysql-connector-python==8.4.0
 paramiko==3.4.0
 sshtunnel==0.4.0
+python-dotenv==1.0.1
+gunicorn==21.2.0
