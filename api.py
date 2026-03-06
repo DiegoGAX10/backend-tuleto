@@ -5,6 +5,9 @@ import mysql.connector
 import warnings
 import traceback
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 warnings.filterwarnings("ignore")
 
@@ -16,21 +19,28 @@ CORS(app)
 # =============================================
 def conectar():
     tunnel = SSHTunnelForwarder(
-        ('79.143.89.198', 22),
-        ssh_username='tuleto',
-        ssh_password='abc123',
-        remote_bind_address=('127.0.0.1', 3306)
+        (os.environ.get('SSH_HOST'), int(os.environ.get('SSH_PORT', 22))),
+        ssh_username=os.environ.get('SSH_USER'),
+        ssh_password=os.environ.get('SSH_PASSWORD'),
+        remote_bind_address=('127.0.0.1', int(os.environ.get('DB_PORT', 3306)))
     )
     tunnel.start()
 
     conn = mysql.connector.connect(
-        host='127.0.0.1',
+        host=os.environ.get('DB_HOST'),
         port=tunnel.local_bind_port,
-        user='tuleto',
-        password='123abc',  # cambia esto
-        database='Tuleto'
+        user=os.environ.get('DB_USER'),
+        password=os.environ.get('DB_PASSWORD'),
+        database=os.environ.get('DB_NAME')
     )
     return tunnel, conn
+
+# =============================================
+# ENDPOINT - HEALTH CHECK
+# =============================================
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok", "message": "API corriendo"})
 
 # =============================================
 # ENDPOINT - PIEZAS
@@ -104,8 +114,9 @@ def get_stats():
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN observaciones LIKE '%defectuoso%' THEN 1 ELSE 0 END) AS defectuosas,
-                SUM(CASE WHEN observaciones NOT LIKE '%defectuoso%' OR observaciones IS NULL THEN 1 ELSE 0 END) AS normales,
-                ROUND(AVG(TIMESTAMPDIFF(MINUTE, hora_inicio, hora_fin)), 2) AS tiempo_promedio
+                SUM(CASE WHEN observaciones NOT LIKE '%defectuoso%'
+                    OR observaciones IS NULL THEN 1 ELSE 0 END)                    AS normales,
+                ROUND(AVG(TIMESTAMPDIFF(MINUTE, hora_inicio, hora_fin)), 2)        AS tiempo_promedio
             FROM Producciones_Diarias
             WHERE id_pieza IS NOT NULL
         """)
